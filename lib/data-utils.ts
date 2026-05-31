@@ -44,11 +44,14 @@ function safeDate(value: string | null) {
 
 type PriorityInput = Pick<
   OpsOrder,
+  | "atpDate"
   | "cancelByDate"
   | "daysDifference"
   | "manualEta"
   | "proposedShipDate"
   | "proposedShipWh"
+  | "proposedShipQuantity"
+  | "soQty"
   | "status"
   | "valueAvailable"
 >;
@@ -72,11 +75,15 @@ export function deriveOrderPriority(
         : order.status === "Backorder"
           ? 14
           : 0;
-  const scheduleMissing =
+  const missingAtp =
     order.status !== "Backorder" &&
     order.status !== "Complete" &&
-    (!order.proposedShipDate || !order.proposedShipWh);
-  const scheduleScore = scheduleMissing ? 15 : 0;
+    !order.atpDate;
+  const incompleteProposedQty =
+    order.status !== "Backorder" &&
+    order.status !== "Complete" &&
+    order.proposedShipQuantity < order.soQty;
+  const scheduleScore = missingAtp || incompleteProposedQty ? 15 : 0;
   const etaScore =
     !order.manualEta && order.status !== "Ready" && order.status !== "Complete" ? 8 : 0;
   const cancelScore = cancelRisk ? 25 : 0;
@@ -89,8 +96,10 @@ export function deriveOrderPriority(
     priorityReason = "Cancel-by date has passed";
   } else if (cancelRisk) {
     priorityReason = "Cancel-by date is within 3 days";
-  } else if (scheduleMissing) {
-    priorityReason = "Missing proposed ship date or warehouse";
+  } else if (missingAtp) {
+    priorityReason = "Missing ATP date";
+  } else if (incompleteProposedQty) {
+    priorityReason = "Proposed quantity is below SO quantity";
   } else if (order.daysDifference > 0) {
     priorityReason = `${order.daysDifference} days behind requested date`;
   } else if (order.status === "Backorder") {
@@ -136,9 +145,9 @@ export function computeMetrics(orders: OpsOrder[], dataHealth?: DataHealth): Kpi
     {
       label: "Ready Value",
       value: formatCurrency(readyValue, true),
-      detail: `${formatNumber(readyOrders.length)} lines ready now`,
+      detail: `${formatNumber(readyOrders.length)} lines full qty + ATP`,
       tone: "emerald",
-      trend: "available value only",
+      trend: "ATP confirmed",
     },
     {
       label: "At-Risk Value",
@@ -238,7 +247,7 @@ function dateKey(value: string | null) {
 function shipDateAnchorKey(orders: OpsOrder[], referenceDateKey?: string) {
   const fallback = referenceDateKey ?? new Date().toISOString().slice(0, 10);
   const dateKeys = orders
-    .flatMap((order) => [dateKey(order.proposedShipDate), dateKey(order.estimatedShipDate)])
+    .flatMap((order) => [dateKey(order.atpDate), dateKey(order.estimatedShipDate)])
     .filter((value): value is string => Boolean(value))
     .sort();
   const nextAvailableDate = dateKeys.find((value) => value >= fallback);
@@ -262,7 +271,7 @@ export function shipDateTrend(orders: OpsOrder[], referenceDateKey?: string) {
     return {
       date: format(day, "MMM d"),
       estimated: orders.filter((order) => order.estimatedShipDate === key).length,
-      proposed: orders.filter((order) => order.proposedShipDate === key).length,
+      proposed: orders.filter((order) => order.atpDate === key).length,
     };
   });
 }
@@ -303,7 +312,10 @@ export function simulateRefresh(orders: OpsOrder[], cycle: RefreshCycle) {
       const nextOrder = {
         ...order,
         daysDifference: Math.max(-5, order.daysDifference - delta),
-        status: order.daysDifference - delta <= 0 ? ("Ready" as const) : order.status,
+        status:
+          order.proposedShipQuantity === order.soQty && order.atpDate
+            ? ("Ready" as const)
+            : order.status,
         valueAvailable: Math.round(order.valueAvailable * 1.015),
       };
 

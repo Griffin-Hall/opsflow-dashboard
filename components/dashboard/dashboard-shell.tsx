@@ -509,7 +509,7 @@ export function DashboardShell({ initialData }: { initialData: OperationsPayload
                     aria-label="Search orders"
                     className="h-9 border-white/10 bg-slate-950/70 pl-9 text-white placeholder:text-slate-500"
                     onChange={(event) => setGlobalSearch(event.target.value)}
-                    placeholder="Search orders, SKUs, customers..."
+                    placeholder="Search SO, BP, SKU, customers..."
                     value={globalSearch}
                   />
                 </div>
@@ -591,28 +591,28 @@ export function DashboardShell({ initialData }: { initialData: OperationsPayload
               onValueChange={(value) => setTab(value as DashboardTab)}
               value={tab}
             >
-              <TabsList className="relative z-10 h-9 w-full max-w-full justify-start gap-1 overflow-x-auto overflow-y-hidden bg-slate-950/60 sm:w-fit">
-                <TabsTrigger className="gap-1.5" value="overview">
+              <TabsList className="relative z-10 grid h-auto w-full max-w-full grid-cols-2 justify-start gap-1 overflow-visible bg-slate-950/60 p-1 sm:inline-flex sm:h-9 sm:w-fit sm:grid-cols-none sm:overflow-x-auto sm:overflow-y-hidden sm:p-[3px]">
+                <TabsTrigger className="h-8 gap-1.5" value="overview">
                   <LayoutDashboard />
                   Overview
                 </TabsTrigger>
-                <TabsTrigger className="gap-1.5" value="orders">
+                <TabsTrigger className="h-8 gap-1.5" value="orders">
                   <Table2 />
                   Live Orders
                 </TabsTrigger>
-                <TabsTrigger className="gap-1.5" value="ready">
+                <TabsTrigger className="h-8 gap-1.5" value="ready">
                   <PackageCheck />
                   Ready to Release
                 </TabsTrigger>
-                <TabsTrigger className="gap-1.5" value="pipeline">
+                <TabsTrigger className="h-8 gap-1.5" value="pipeline">
                   <BarChart3 />
                   Pipeline
                 </TabsTrigger>
-                <TabsTrigger className="gap-1.5" value="activities">
+                <TabsTrigger className="h-8 gap-1.5" value="activities">
                   <Activity />
                   Activities
                 </TabsTrigger>
-                <TabsTrigger className="gap-1.5" value="settings">
+                <TabsTrigger className="h-8 gap-1.5" value="settings">
                   <Settings />
                   Settings
                 </TabsTrigger>
@@ -647,7 +647,7 @@ export function DashboardShell({ initialData }: { initialData: OperationsPayload
                 <div className="flex flex-col gap-3">
                   <div className="flex items-center gap-2 rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.06] px-4 py-3 text-sm text-emerald-100">
                     <PackageCheck className="size-4" />
-                    {formatNumber(readyOrders.length)} lines are currently ready by status rules.
+                    {formatNumber(readyOrders.length)} lines have full proposed quantity and ATP dates.
                     Generate the daily ops sheet to release them.
                   </div>
                   <OrdersTable orders={readyOrders} previewRows={8} />

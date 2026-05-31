@@ -47,7 +47,7 @@ const trendConfig = {
   },
   proposed: {
     color: "#22d3ee",
-    label: "Proposed",
+    label: "ATP",
   },
 } satisfies ChartConfig;
 
@@ -89,7 +89,7 @@ export function DashboardCharts({
         <Card className="border-white/10 bg-white/[0.045] text-white xl:col-span-3">
           <CardHeader className="pb-2">
             <CardTitle className="text-base">
-              Proposed vs Estimated Ship Dates ({trendWindow})
+              ATP vs Estimated Ship Dates ({trendWindow})
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -226,7 +226,7 @@ export function DashboardCharts({
       <Card className="border-white/10 bg-white/[0.045] text-white xl:col-span-3">
         <CardHeader className="pb-2">
           <CardTitle className="text-base">
-            Proposed vs Estimated Ship Dates ({trendWindow})
+            ATP vs Estimated Ship Dates ({trendWindow})
           </CardTitle>
         </CardHeader>
         <CardContent>

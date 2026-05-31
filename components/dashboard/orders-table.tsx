@@ -99,6 +99,7 @@ function downloadCsv(orders: OpsOrder[]) {
     "Product",
     "Proposed Ship Quantity",
     "Value Available",
+    "ATP Date",
     "Proposed Ship Date",
     "Days Difference",
     "Warehouse",
@@ -112,6 +113,7 @@ function downloadCsv(orders: OpsOrder[]) {
     order.product,
     String(order.proposedShipQuantity),
     String(order.valueAvailable),
+    order.atpDate ?? "",
     order.proposedShipDate ?? "",
     String(order.daysDifference),
     order.proposedShipWh || order.soWarehouse,
@@ -186,10 +188,13 @@ export function OrdersTable({
     return orders.filter((order) => {
       const text = [
         order.soNo,
+        order.bpNo,
         order.bpName,
         order.customerPo,
         order.product,
         order.itemDescription,
+        order.atpDate,
+        order.proposedShipDate,
         order.proposedShipWh,
         order.soWarehouse,
         order.status,
@@ -311,19 +316,19 @@ export function OrdersTable({
         ),
       },
       {
-        accessorKey: "proposedShipDate",
+        accessorKey: "atpDate",
         header: ({ column }) => (
           <HeaderButton onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-            Ship Date
+            ATP Date
           </HeaderButton>
         ),
         cell: ({ row }) => (
           <div className="flex flex-col gap-1">
             <span className="text-sm text-slate-100">
-              {formatLongDate(row.original.proposedShipDate)}
+              {formatLongDate(row.original.atpDate)}
             </span>
             <span className="text-xs text-slate-500">
-              Est. {formatShortDate(row.original.estimatedShipDate)}
+              Prop. {formatShortDate(row.original.proposedShipDate)}
             </span>
           </div>
         ),
@@ -501,7 +506,7 @@ export function OrdersTable({
             <Input
               className="h-9 border-white/10 bg-slate-950/70 pl-9 text-white placeholder:text-slate-500"
               onChange={(event) => setGlobalSearch(event.target.value)}
-              placeholder="Search SO, name, PO, product, notes..."
+              placeholder="Search SO, BP, SKU, product, notes..."
               value={globalSearch}
             />
           </div>

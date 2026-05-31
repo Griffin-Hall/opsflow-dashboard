@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { createRequire } from "node:module";
 import { join } from "node:path";
-import { differenceInCalendarDays, format, parseISO } from "date-fns";
+import { differenceInCalendarDays, parseISO } from "date-fns";
 import { deriveOrderPriority } from "@/lib/data-utils";
 import { fakeOrders } from "@/lib/fakeData";
 import type { DataHealthIssue, OperationsPayload, OpsOrder, OrderStatus } from "@/lib/types";
@@ -9,9 +9,14 @@ import type { DataHealthIssue, OperationsPayload, OpsOrder, OrderStatus } from "
 const DEFAULT_EXCEL_PATH = join(process.cwd(), "data", "operations.xlsx");
 const REQUIRED_COLUMNS = [
   "SO No",
+  "BP No",
   "BP Name",
+  "Order Date",
+  "Product",
+  "Item Description",
   "SO Qty",
   "Proposed Ship Quantity",
+  "ATP Date",
   "Extended Price",
 ];
 const DATE_COLUMN_NAMES = [
@@ -74,7 +79,7 @@ function asString(value: CellValue) {
   }
 
   if (value instanceof Date) {
-    return format(value, "yyyy-MM-dd");
+    return toIsoDate(value) ?? "";
   }
 
   return String(value).trim();
@@ -99,7 +104,7 @@ function asBoolean(value: CellValue) {
 }
 
 function isReasonableOpsDate(date: Date) {
-  const year = date.getFullYear();
+  const year = date.getUTCFullYear();
   return year >= MIN_VALID_DATE_YEAR && year <= MAX_VALID_DATE_YEAR;
 }
 
@@ -108,7 +113,10 @@ function toIsoDate(date: Date) {
     return null;
   }
 
-  return format(date, "yyyy-MM-dd");
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(date.getUTCDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function asIsoDate(value: CellValue) {
@@ -164,6 +172,7 @@ function countUnusableDateCells(dataRows: CellValue[][], headers: string[]) {
 }
 
 function deriveStatus(order: {
+  atpDate: string | null;
   daysDifference: number;
   proposedShipDate: string | null;
   proposedShipQuantity: number;
@@ -179,20 +188,20 @@ function deriveStatus(order: {
     return "Backorder";
   }
 
+  if (order.proposedShipQuantity === order.soQty && order.atpDate) {
+    return "Ready";
+  }
+
+  if (order.proposedShipQuantity > 0 && order.proposedShipQuantity < order.soQty && order.atpDate) {
+    return "Partial";
+  }
+
   if (order.daysDifference > 4) {
     return "Delayed";
   }
 
-  if (order.daysDifference > 1) {
+  if (order.daysDifference > 1 || !order.atpDate) {
     return "At Risk";
-  }
-
-  if (!order.proposedShipDate || !order.proposedShipWh) {
-    return "At Risk";
-  }
-
-  if (order.proposedShipQuantity < order.soQty) {
-    return "Partial";
   }
 
   return "Ready";
@@ -269,6 +278,7 @@ function buildOrder(
   const shipComplete = asBoolean(valueFor("Ship Complete"));
   const proposedShipDate = asIsoDate(valueFor("Proposed Ship Date"));
   const proposedShipWh = asString(valueFor("Proposed Ship WH"));
+  const atpDate = asIsoDate(valueFor("ATP Date"));
   const estimatedShipDate = asIsoDate(valueFor("Estimated Shipdate"));
   const requestedShipDate = asIsoDate(valueFor("Requested Shipdate"));
   const rawDaysDifference = asNumber(valueFor("Days difference"));
@@ -276,17 +286,17 @@ function buildOrder(
     rawDaysDifference,
     estimatedShipDate,
     requestedShipDate,
-    proposedShipDate
+    atpDate ?? proposedShipDate
   );
   const cancelByDate = asIsoDate(valueFor("Cancel By Date"));
   const manualEta = asManualEta(valueFor("Manual ETA"));
+  const fillRate = soQty > 0 && proposedShipQuantity > 0
+    ? Math.min(proposedShipQuantity, soQty) / soQty
+    : 0;
   const valueAvailable =
-    soQty > 0 && proposedShipQuantity > 0
-      ? Math.round((extendedPrice * proposedShipQuantity) / soQty)
-      : proposedShipQuantity > 0
-        ? extendedPrice
-        : 0;
+    atpDate && fillRate > 0 ? Math.round(extendedPrice * fillRate) : 0;
   const orderSeed = {
+    atpDate,
     daysDifference,
     proposedShipDate,
     proposedShipQuantity,
@@ -297,10 +307,13 @@ function buildOrder(
   const status = deriveStatus(orderSeed);
   const priority = deriveOrderPriority({
     cancelByDate,
+    atpDate,
     daysDifference,
     manualEta,
     proposedShipDate,
     proposedShipWh,
+    proposedShipQuantity,
+    soQty,
     status,
     valueAvailable,
   });
@@ -322,7 +335,7 @@ function buildOrder(
     soWarehouse: asString(valueFor("SO Warehouse")),
     proposedShipWh,
     proposedShipDate,
-    atpDate: asIsoDate(valueFor("ATP Date")),
+    atpDate,
     estimatedShipDate,
     requestedShipDate,
     cancelByDate,
