@@ -103,6 +103,8 @@ function downloadCsv(orders: OpsOrder[]) {
     "Days Difference",
     "Warehouse",
     "Status",
+    "Priority",
+    "Priority Reason",
   ];
   const rows = orders.map((order) => [
     order.soNo,
@@ -114,6 +116,8 @@ function downloadCsv(orders: OpsOrder[]) {
     String(order.daysDifference),
     order.proposedShipWh || order.soWarehouse,
     order.status,
+    String(order.priorityScore),
+    order.priorityReason,
   ]);
   const csv = [headers, ...rows]
     .map((row) => row.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(","))
@@ -125,6 +129,18 @@ function downloadCsv(orders: OpsOrder[]) {
   link.download = "opsflow-daily-ops-sheet.csv";
   link.click();
   URL.revokeObjectURL(url);
+}
+
+function priorityClass(score: number) {
+  if (score >= 70) {
+    return "border-rose-300/30 bg-rose-300/10 text-rose-100";
+  }
+
+  if (score >= 40) {
+    return "border-amber-300/30 bg-amber-300/10 text-amber-100";
+  }
+
+  return "border-cyan-300/25 bg-cyan-300/10 text-cyan-100";
 }
 
 export function OrdersTable({
@@ -174,7 +190,11 @@ export function OrdersTable({
         order.customerPo,
         order.product,
         order.itemDescription,
+        order.proposedShipWh,
+        order.soWarehouse,
+        order.status,
         order.activityNotes,
+        order.priorityReason,
       ]
         .join(" ")
         .toLowerCase();
@@ -201,6 +221,11 @@ export function OrdersTable({
         daysPass
       );
     });
+  }, [daysFilter, globalSearch, highValueOnly, orders, readyOnly, status, warehouse]);
+
+  React.useEffect(() => {
+    setPagination((current) => ({ ...current, pageIndex: 0 }));
+    setRowSelection({});
   }, [daysFilter, globalSearch, highValueOnly, orders, readyOnly, status, warehouse]);
 
   const columns = React.useMemo<ColumnDef<OpsOrder>[]>(
@@ -343,6 +368,25 @@ export function OrdersTable({
         cell: ({ row }) => <StatusBadge status={row.original.status} />,
       },
       {
+        accessorKey: "priorityScore",
+        header: ({ column }) => (
+          <HeaderButton onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+            Priority
+          </HeaderButton>
+        ),
+        cell: ({ row }) => (
+          <Badge
+            className={cn(
+              "rounded-full border px-2.5 py-1",
+              priorityClass(row.original.priorityScore)
+            )}
+            title={row.original.priorityReason}
+          >
+            {row.original.priorityScore}
+          </Badge>
+        ),
+      },
+      {
         enableHiding: false,
         id: "actions",
         cell: ({ row }) => (
@@ -424,7 +468,7 @@ export function OrdersTable({
   }
 
   return (
-    <section className="rounded-3xl border border-white/10 bg-white/[0.045] p-4 text-white shadow-2xl shadow-black/20">
+    <section className="min-w-0 rounded-3xl border border-white/10 bg-white/[0.045] p-4 text-white shadow-2xl shadow-black/20">
       <div className="flex flex-col gap-4">
         <div className="flex flex-col justify-between gap-3 xl:flex-row xl:items-center">
           <div>
@@ -555,8 +599,8 @@ export function OrdersTable({
           </span>
         </div>
 
-        <div className="overflow-hidden rounded-2xl border border-white/10">
-          <Table>
+        <div className="max-w-full overflow-hidden rounded-2xl border border-white/10">
+          <Table className="min-w-[1080px]">
             <TableHeader className="bg-slate-950/80">
               {table.getHeaderGroups().map((headerGroup) => (
                 <TableRow className="border-white/10 hover:bg-transparent" key={headerGroup.id}>

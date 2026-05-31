@@ -10,6 +10,23 @@ const numberFormatter = new Intl.NumberFormat("en-US", {
   maximumFractionDigits: 0,
 });
 
+const utcTimestampFormatter = new Intl.DateTimeFormat("en-US", {
+  day: "numeric",
+  hour: "numeric",
+  hour12: true,
+  minute: "2-digit",
+  month: "short",
+  timeZone: "UTC",
+  year: "numeric",
+});
+
+const utcTimeFormatter = new Intl.DateTimeFormat("en-US", {
+  hour: "numeric",
+  hour12: true,
+  minute: "2-digit",
+  timeZone: "UTC",
+});
+
 export function formatCurrency(value: number, compact = false) {
   const safeValue = Number.isFinite(value) ? value : 0;
 
@@ -39,6 +56,32 @@ export function formatNumber(value: number) {
 
 export function formatPercent(value: number) {
   return `${Math.round(value)}%`;
+}
+
+export function formatUtcTimestamp(value: string | null) {
+  if (!value) {
+    return "Unknown refresh time";
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "Unknown refresh time";
+  }
+
+  return `${utcTimestampFormatter.format(date)} UTC`;
+}
+
+export function formatUtcTime(value: string | null) {
+  if (!value) {
+    return "Unknown";
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "Unknown";
+  }
+
+  return `${utcTimeFormatter.format(date)} UTC`;
 }
 
 export function formatShortDate(value: string | null) {

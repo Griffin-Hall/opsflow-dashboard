@@ -1,6 +1,11 @@
+import { deriveOrderPriority } from "@/lib/data-utils";
 import type { OpsOrder } from "@/lib/types";
 
-export const fakeOrders: OpsOrder[] = [
+type SampleOrder = Omit<OpsOrder, "cancelRisk" | "priorityReason" | "priorityScore">;
+
+const sampleReferenceDate = new Date("2026-05-30T12:00:00Z");
+
+const baseFakeOrders: SampleOrder[] = [
   {
     id: "sample-100381",
     soNo: "100381",
@@ -770,3 +775,8 @@ export const fakeOrders: OpsOrder[] = [
     status: "Ready",
   },
 ];
+
+export const fakeOrders: OpsOrder[] = baseFakeOrders.map((order) => ({
+  ...order,
+  ...deriveOrderPriority(order, sampleReferenceDate),
+}));

@@ -23,6 +23,7 @@ import {
   daysDifferenceHeat,
   ordersByWarehouse,
   shipDateTrend,
+  shipDateWindowLabel,
   statusBreakdown,
   topCustomersByValue,
   warehouseColors,
@@ -50,11 +51,18 @@ const trendConfig = {
   },
 } satisfies ChartConfig;
 
-export function DashboardCharts({ orders }: { orders: OpsOrder[] }) {
+export function DashboardCharts({
+  orders,
+  referenceDate,
+}: {
+  orders: OpsOrder[];
+  referenceDate?: string;
+}) {
   const [ready, setReady] = React.useState(false);
   const warehouseData = ordersByWarehouse(orders);
   const customerData = topCustomersByValue(orders);
-  const trendData = shipDateTrend(orders);
+  const trendData = shipDateTrend(orders, referenceDate);
+  const trendWindow = shipDateWindowLabel(orders, referenceDate);
   const statusData = statusBreakdown(orders);
   const heatData = daysDifferenceHeat(orders);
 
@@ -81,7 +89,7 @@ export function DashboardCharts({ orders }: { orders: OpsOrder[] }) {
         <Card className="border-white/10 bg-white/[0.045] text-white xl:col-span-3">
           <CardHeader className="pb-2">
             <CardTitle className="text-base">
-              Proposed vs Estimated Ship Dates This Week
+              Proposed vs Estimated Ship Dates ({trendWindow})
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -100,7 +108,7 @@ export function DashboardCharts({ orders }: { orders: OpsOrder[] }) {
         </CardHeader>
         <CardContent className="grid gap-3 lg:grid-cols-[1fr_0.9fr] xl:grid-cols-1 2xl:grid-cols-[1fr_0.9fr]">
           <ChartContainer
-            className="mx-auto aspect-square max-h-[240px]"
+            className="mx-auto h-[220px] w-[220px] max-w-full"
             config={valueConfig}
           >
             <PieChart>
@@ -218,7 +226,7 @@ export function DashboardCharts({ orders }: { orders: OpsOrder[] }) {
       <Card className="border-white/10 bg-white/[0.045] text-white xl:col-span-3">
         <CardHeader className="pb-2">
           <CardTitle className="text-base">
-            Proposed vs Estimated Ship Dates This Week
+            Proposed vs Estimated Ship Dates ({trendWindow})
           </CardTitle>
         </CardHeader>
         <CardContent>

@@ -2,14 +2,64 @@ import { existsSync } from "node:fs";
 import { createRequire } from "node:module";
 import { join } from "node:path";
 import { differenceInCalendarDays, format, parseISO } from "date-fns";
+import { deriveOrderPriority } from "@/lib/data-utils";
 import { fakeOrders } from "@/lib/fakeData";
-import type { OperationsPayload, OpsOrder, OrderStatus } from "@/lib/types";
+import type { DataHealthIssue, OperationsPayload, OpsOrder, OrderStatus } from "@/lib/types";
 
 const DEFAULT_EXCEL_PATH = join(process.cwd(), "data", "operations.xlsx");
+const REQUIRED_COLUMNS = [
+  "SO No",
+  "BP Name",
+  "SO Qty",
+  "Proposed Ship Quantity",
+  "Extended Price",
+];
+const DATE_COLUMN_NAMES = [
+  "Order Date",
+  "Proposed Ship Date",
+  "ATP Date",
+  "Estimated Shipdate",
+  "Requested Shipdate",
+  "Cancel By Date",
+  "Activity Date",
+  "Activity Follow Up Date",
+];
+const MIN_VALID_DATE_YEAR = 2000;
+const MAX_VALID_DATE_YEAR = 2035;
 
 type CellValue = string | number | boolean | Date | null | undefined;
 type ReadSheet = (path: string) => Promise<CellValue[][]>;
 const nodeRequire = createRequire(import.meta.url);
+
+function samplePayload(
+  refreshedAt: string,
+  workbookPath: string,
+  issues: DataHealthIssue[],
+  options: {
+    droppedRows?: number;
+    missingColumns?: string[];
+    rowCount?: number;
+  } = {}
+): OperationsPayload {
+  return {
+    orders: fakeOrders,
+    refreshedAt,
+    rowCount: fakeOrders.length,
+    source: "sample",
+    sourceLabel: "Sample portfolio data",
+    dataHealth: {
+      droppedRows: options.droppedRows ?? 0,
+      isSample: true,
+      issues,
+      loadedOrderCount: fakeOrders.length,
+      missingColumns: options.missingColumns ?? [],
+      mode: "sample",
+      refreshedAt,
+      rowCount: options.rowCount ?? fakeOrders.length,
+      workbookPath,
+    },
+  };
+}
 
 function normalizeHeader(value: CellValue) {
   return String(value ?? "")
@@ -48,28 +98,76 @@ function asBoolean(value: CellValue) {
   return ["true", "yes", "y", "complete", "ship complete", "1"].includes(raw);
 }
 
+function isReasonableOpsDate(date: Date) {
+  const year = date.getFullYear();
+  return year >= MIN_VALID_DATE_YEAR && year <= MAX_VALID_DATE_YEAR;
+}
+
+function toIsoDate(date: Date) {
+  if (Number.isNaN(date.getTime()) || !isReasonableOpsDate(date)) {
+    return null;
+  }
+
+  return format(date, "yyyy-MM-dd");
+}
+
 function asIsoDate(value: CellValue) {
   if (!value) {
     return null;
   }
 
   if (value instanceof Date && !Number.isNaN(value.getTime())) {
-    return format(value, "yyyy-MM-dd");
+    return toIsoDate(value);
   }
 
   if (typeof value === "number") {
     const excelEpoch = new Date(Date.UTC(1899, 11, 30));
     const date = new Date(excelEpoch.getTime() + value * 86400000);
-    return Number.isNaN(date.getTime()) ? null : format(date, "yyyy-MM-dd");
+    return toIsoDate(date);
   }
 
   const date = new Date(String(value));
-  return Number.isNaN(date.getTime()) ? null : format(date, "yyyy-MM-dd");
+  return toIsoDate(date);
+}
+
+function asManualEta(value: CellValue) {
+  const parsedDate = asIsoDate(value);
+  if (parsedDate) {
+    return parsedDate;
+  }
+
+  const raw = asString(value);
+  if (!raw) {
+    return null;
+  }
+
+  if (value instanceof Date || typeof value === "number") {
+    return null;
+  }
+
+  const dateLike = new Date(raw);
+  return Number.isNaN(dateLike.getTime()) ? raw : null;
+}
+
+function countUnusableDateCells(dataRows: CellValue[][], headers: string[]) {
+  const dateIndexes = DATE_COLUMN_NAMES.map((name) => headers.indexOf(normalizeHeader(name)))
+    .filter((index) => index >= 0);
+
+  return dataRows.reduce((count, row) => {
+    const unusableInRow = dateIndexes.filter((index) => {
+      const value = row[index];
+      return value !== null && value !== undefined && asString(value) !== "" && !asIsoDate(value);
+    }).length;
+
+    return count + unusableInRow;
+  }, 0);
 }
 
 function deriveStatus(order: {
   daysDifference: number;
+  proposedShipDate: string | null;
   proposedShipQuantity: number;
+  proposedShipWh: string;
   shipComplete: boolean;
   soQty: number;
 }): OrderStatus {
@@ -86,6 +184,10 @@ function deriveStatus(order: {
   }
 
   if (order.daysDifference > 1) {
+    return "At Risk";
+  }
+
+  if (!order.proposedShipDate || !order.proposedShipWh) {
     return "At Risk";
   }
 
@@ -120,6 +222,29 @@ function normalizedDaysDifference(
   return differenceInCalendarDays(targetDate, requestedDate);
 }
 
+function orderDateKeys(order: OpsOrder) {
+  return [
+    order.orderDate,
+    order.proposedShipDate,
+    order.atpDate,
+    order.estimatedShipDate,
+    order.requestedShipDate,
+    order.cancelByDate,
+    order.activityDate,
+    order.activityFollowUpDate,
+  ].filter((value): value is string => Boolean(value));
+}
+
+function operationalReferenceDate(orders: OpsOrder[], refreshedAt: string) {
+  const todayKey = refreshedAt.slice(0, 10);
+  const dateKeys = orders.flatMap(orderDateKeys).sort();
+  if (dateKeys.some((value) => value >= todayKey)) {
+    return parseISO(todayKey);
+  }
+
+  return parseISO(dateKeys[dateKeys.length - 1] ?? todayKey);
+}
+
 function buildOrder(
   row: CellValue[],
   headers: string[],
@@ -143,6 +268,7 @@ function buildOrder(
   const extendedPrice = asNumber(valueFor("Extended Price"));
   const shipComplete = asBoolean(valueFor("Ship Complete"));
   const proposedShipDate = asIsoDate(valueFor("Proposed Ship Date"));
+  const proposedShipWh = asString(valueFor("Proposed Ship WH"));
   const estimatedShipDate = asIsoDate(valueFor("Estimated Shipdate"));
   const requestedShipDate = asIsoDate(valueFor("Requested Shipdate"));
   const rawDaysDifference = asNumber(valueFor("Days difference"));
@@ -152,12 +278,32 @@ function buildOrder(
     requestedShipDate,
     proposedShipDate
   );
+  const cancelByDate = asIsoDate(valueFor("Cancel By Date"));
+  const manualEta = asManualEta(valueFor("Manual ETA"));
+  const valueAvailable =
+    soQty > 0 && proposedShipQuantity > 0
+      ? Math.round((extendedPrice * proposedShipQuantity) / soQty)
+      : proposedShipQuantity > 0
+        ? extendedPrice
+        : 0;
   const orderSeed = {
     daysDifference,
+    proposedShipDate,
     proposedShipQuantity,
+    proposedShipWh,
     shipComplete,
     soQty,
   };
+  const status = deriveStatus(orderSeed);
+  const priority = deriveOrderPriority({
+    cancelByDate,
+    daysDifference,
+    manualEta,
+    proposedShipDate,
+    proposedShipWh,
+    status,
+    valueAvailable,
+  });
 
   return {
     id: `${soNo}-${rowIndex}`,
@@ -172,20 +318,15 @@ function buildOrder(
     soQty,
     proposedShipQuantity,
     extendedPrice,
-    valueAvailable:
-      soQty > 0 && proposedShipQuantity > 0
-        ? Math.round((extendedPrice * proposedShipQuantity) / soQty)
-        : proposedShipQuantity > 0
-          ? extendedPrice
-          : 0,
+    valueAvailable,
     soWarehouse: asString(valueFor("SO Warehouse")),
-    proposedShipWh: asString(valueFor("Proposed Ship WH")),
+    proposedShipWh,
     proposedShipDate,
     atpDate: asIsoDate(valueFor("ATP Date")),
     estimatedShipDate,
     requestedShipDate,
-    cancelByDate: asIsoDate(valueFor("Cancel By Date")),
-    manualEta: asIsoDate(valueFor("Manual ETA")) ?? asString(valueFor("Manual ETA")) ?? null,
+    cancelByDate,
+    manualEta,
     daysDifference,
     shippingMethod: asString(valueFor("Shipping Method")),
     shipComplete,
@@ -194,7 +335,8 @@ function buildOrder(
     activityDate: asIsoDate(valueFor("Activity Date")),
     activityFollowUpDate: asIsoDate(valueFor("Activity Follow Up Date")),
     activityNotes: asString(valueFor("Activity Notes")),
-    status: deriveStatus(orderSeed),
+    status,
+    ...priority,
   };
 }
 
@@ -205,14 +347,25 @@ export async function getOperationsData(): Promise<OperationsPayload> {
     process.env.GITHUB_PAGES === "true" ||
     process.env.OPSFLOW_USE_SAMPLE_DATA === "true";
 
-  if (useSampleData || !existsSync(workbookPath)) {
-    return {
-      orders: fakeOrders,
-      refreshedAt,
-      rowCount: fakeOrders.length,
-      source: "sample",
-      sourceLabel: "Sample portfolio data",
-    };
+  if (useSampleData) {
+    return samplePayload(refreshedAt, workbookPath, [
+      {
+        severity: "info",
+        message:
+          process.env.GITHUB_PAGES === "true"
+            ? "Public GitHub Pages build uses sample portfolio data."
+            : "OPSFLOW_USE_SAMPLE_DATA is enabled.",
+      },
+    ]);
+  }
+
+  if (!existsSync(workbookPath)) {
+    return samplePayload(refreshedAt, workbookPath, [
+      {
+        severity: "warning",
+        message: `Workbook not found at ${workbookPath}; using sample data.`,
+      },
+    ]);
   }
 
   try {
@@ -222,25 +375,82 @@ export async function getOperationsData(): Promise<OperationsPayload> {
     const rows = await readSheet(workbookPath);
     const [headerRow, ...dataRows] = rows;
     const headers = (headerRow ?? []).map(normalizeHeader);
-    const orders = dataRows
-      .map((row, index) => buildOrder(row, headers, index + 2))
-      .filter((order): order is OpsOrder => Boolean(order));
+    const missingColumns = REQUIRED_COLUMNS.filter(
+      (column) => !headers.includes(normalizeHeader(column))
+    );
+    const builtOrders = dataRows.map((row, index) => buildOrder(row, headers, index + 2));
+    const orders = builtOrders.filter((order): order is OpsOrder => Boolean(order));
+    const droppedRows = builtOrders.length - orders.length;
+    const unusableDateCells = countUnusableDateCells(dataRows, headers);
+
+    if (orders.length === 0) {
+      return samplePayload(
+        refreshedAt,
+        workbookPath,
+        [
+          {
+            severity: "error",
+            message: "Workbook loaded, but no valid orders were parsed; using sample data.",
+          },
+        ],
+        {
+          droppedRows,
+          missingColumns,
+          rowCount: dataRows.length,
+        }
+      );
+    }
+
+    const issues: DataHealthIssue[] = [];
+    if (missingColumns.length > 0) {
+      issues.push({
+        severity: "warning",
+        message: `Missing expected columns: ${missingColumns.join(", ")}.`,
+      });
+    }
+
+    if (droppedRows > 0) {
+      issues.push({
+        severity: "warning",
+        message: `${droppedRows} workbook rows were skipped because SO No or BP Name was missing.`,
+      });
+    }
+
+    if (unusableDateCells > 0) {
+      issues.push({
+        severity: "warning",
+        message: `${unusableDateCells} date cells were ignored because they were invalid or outside ${MIN_VALID_DATE_YEAR}-${MAX_VALID_DATE_YEAR}.`,
+      });
+    }
+
+    const referenceDate = operationalReferenceDate(orders, refreshedAt);
+    const prioritizedOrders = orders.map((order) => ({
+      ...order,
+      ...deriveOrderPriority(order, referenceDate),
+    }));
 
     return {
-      orders: orders.length > 0 ? orders : fakeOrders,
+      orders: prioritizedOrders,
       refreshedAt,
-      rowCount: orders.length,
-      source: orders.length > 0 ? "excel" : "sample",
-      sourceLabel:
-        orders.length > 0 ? "Local Excel workbook" : "Sample portfolio data",
+      rowCount: prioritizedOrders.length,
+      source: "excel",
+      sourceLabel: "Local Excel workbook",
+      dataHealth: {
+        droppedRows,
+        isSample: false,
+        issues,
+        loadedOrderCount: prioritizedOrders.length,
+        missingColumns,
+        mode: "excel",
+        refreshedAt,
+        rowCount: dataRows.length,
+        workbookPath,
+      },
     };
-  } catch {
-    return {
-      orders: fakeOrders,
-      refreshedAt,
-      rowCount: fakeOrders.length,
-      source: "sample",
-      sourceLabel: "Sample portfolio data",
-    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown workbook parse error";
+    return samplePayload(refreshedAt, workbookPath, [
+      { severity: "error", message: `Workbook parse failed: ${message}` },
+    ]);
   }
 }

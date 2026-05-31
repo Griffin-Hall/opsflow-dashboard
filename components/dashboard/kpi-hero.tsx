@@ -2,10 +2,12 @@
 
 import { motion, useReducedMotion } from "framer-motion";
 import {
-  ArrowUpRight,
+  AlertTriangle,
   CalendarClock,
   CheckCircle2,
+  Database,
   Gauge,
+  PackageX,
   Warehouse,
   type LucideIcon,
 } from "lucide-react";
@@ -13,20 +15,22 @@ import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import type { KpiMetric } from "@/lib/types";
 
-// The four headline KPIs that give an instant "pulse check" on landing.
-// Ready to Release is featured; the rest are supporting context.
 const HERO_LABELS = [
-  "Ready to Release",
-  "On-Time Potential",
-  "Avg Days Diff",
-  "Warehouses Active",
+  "Ready Value",
+  "At-Risk Value",
+  "Late / Cancel Risk",
+  "Backorder Value",
+  "Warehouse Bottleneck",
+  "Data Freshness",
 ] as const;
 
 const labelIcons: Record<string, LucideIcon> = {
-  "Ready to Release": CheckCircle2,
-  "On-Time Potential": Gauge,
-  "Avg Days Diff": CalendarClock,
-  "Warehouses Active": Warehouse,
+  "Ready Value": CheckCircle2,
+  "At-Risk Value": AlertTriangle,
+  "Late / Cancel Risk": CalendarClock,
+  "Backorder Value": PackageX,
+  "Warehouse Bottleneck": Warehouse,
+  "Data Freshness": Database,
 };
 
 const toneClasses: Record<KpiMetric["tone"], string> = {
@@ -46,11 +50,11 @@ export function KpiHero({ metrics }: { metrics: KpiMetric[] }) {
   return (
     <section
       aria-label="Key operations metrics"
-      className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
+      className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6"
     >
       {hero.map((metric, index) => {
         const Icon = labelIcons[metric.label] ?? Gauge;
-        const featured = metric.label === "Ready to Release";
+        const featured = metric.label === "Ready Value";
 
         return (
           <motion.div
@@ -88,7 +92,7 @@ export function KpiHero({ metrics }: { metrics: KpiMetric[] }) {
                 <p
                   className={cn(
                     "relative mt-3 font-semibold tabular-nums tracking-tight text-white",
-                    featured ? "text-4xl" : "text-3xl"
+                    featured ? "text-3xl" : "text-2xl"
                   )}
                 >
                   {metric.value}
@@ -97,7 +101,6 @@ export function KpiHero({ metrics }: { metrics: KpiMetric[] }) {
                   <span className="text-slate-400">{metric.detail}</span>
                   <span className={cn("inline-flex items-center gap-1", toneClasses[metric.tone])}>
                     {metric.trend}
-                    <ArrowUpRight className="size-3.5" />
                   </span>
                 </div>
               </CardContent>

@@ -1,6 +1,6 @@
-import { addDays, format, parseISO } from "date-fns";
-import type { KpiMetric, OpsOrder, OrderStatus, RefreshCycle } from "@/lib/types";
-import { formatCurrency, formatNumber, formatPercent } from "@/lib/format";
+import { addDays, differenceInCalendarDays, format, parseISO } from "date-fns";
+import type { DataHealth, KpiMetric, OpsOrder, OrderStatus, RefreshCycle } from "@/lib/types";
+import { formatCurrency, formatNumber, formatUtcTime } from "@/lib/format";
 
 export const statusOrder: OrderStatus[] = [
   "Ready",
@@ -42,69 +42,142 @@ function safeDate(value: string | null) {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
-export function computeMetrics(orders: OpsOrder[]): KpiMetric[] {
-  const totalSos = new Set(orders.map((order) => order.soNo)).size;
-  const pipeline = sum(orders.map((order) => order.valueAvailable || order.extendedPrice));
-  const ready = orders.filter((order) => order.status === "Ready").length;
-  const avgDays =
-    orders.length === 0
-      ? 0
-      : sum(orders.map((order) => order.daysDifference)) / orders.length;
-  const warehouses = new Set(
-    orders
-      .map((order) => order.proposedShipWh || order.soWarehouse)
-      .filter(Boolean)
-  ).size;
-  const onTime =
-    orders.length === 0
-      ? 0
-      : (orders.filter((order) => order.daysDifference <= 0 || order.status === "Complete")
-          .length /
-          orders.length) *
-        100;
+type PriorityInput = Pick<
+  OpsOrder,
+  | "cancelByDate"
+  | "daysDifference"
+  | "manualEta"
+  | "proposedShipDate"
+  | "proposedShipWh"
+  | "status"
+  | "valueAvailable"
+>;
+
+export function deriveOrderPriority(
+  order: PriorityInput,
+  referenceDate: Date = new Date()
+) {
+  const cancelDate = safeDate(order.cancelByDate);
+  const daysUntilCancel = cancelDate
+    ? differenceInCalendarDays(cancelDate, referenceDate)
+    : null;
+  const cancelRisk = daysUntilCancel !== null && daysUntilCancel <= 3;
+  const valueScore = Math.min(30, Math.floor(order.valueAvailable / 10000));
+  const latenessScore = Math.max(0, Math.min(35, order.daysDifference * 5));
+  const statusScore =
+    order.status === "Delayed"
+      ? 25
+      : order.status === "At Risk"
+        ? 18
+        : order.status === "Backorder"
+          ? 14
+          : 0;
+  const scheduleMissing =
+    order.status !== "Backorder" &&
+    order.status !== "Complete" &&
+    (!order.proposedShipDate || !order.proposedShipWh);
+  const scheduleScore = scheduleMissing ? 15 : 0;
+  const etaScore =
+    !order.manualEta && order.status !== "Ready" && order.status !== "Complete" ? 8 : 0;
+  const cancelScore = cancelRisk ? 25 : 0;
+  const priorityScore = Math.min(
+    100,
+    valueScore + latenessScore + statusScore + scheduleScore + etaScore + cancelScore
+  );
+  let priorityReason = "Normal release priority";
+  if (daysUntilCancel !== null && daysUntilCancel < 0) {
+    priorityReason = "Cancel-by date has passed";
+  } else if (cancelRisk) {
+    priorityReason = "Cancel-by date is within 3 days";
+  } else if (scheduleMissing) {
+    priorityReason = "Missing proposed ship date or warehouse";
+  } else if (order.daysDifference > 0) {
+    priorityReason = `${order.daysDifference} days behind requested date`;
+  } else if (order.status === "Backorder") {
+    priorityReason = "No available proposed quantity";
+  }
+
+  return { cancelRisk, priorityReason, priorityScore };
+}
+
+function freshnessTone(dataHealth?: DataHealth): KpiMetric["tone"] {
+  if (!dataHealth) {
+    return "cyan";
+  }
+
+  if (dataHealth.issues.some((issue) => issue.severity === "error")) {
+    return "rose";
+  }
+
+  if (dataHealth.isSample || dataHealth.issues.length > 0) {
+    return "amber";
+  }
+
+  return "emerald";
+}
+
+export function computeMetrics(orders: OpsOrder[], dataHealth?: DataHealth): KpiMetric[] {
+  const readyOrders = orders.filter((order) => order.status === "Ready");
+  const atRiskOrders = orders.filter(
+    (order) => order.status === "At Risk" || order.status === "Delayed"
+  );
+  const lateOrCancelRisk = orders.filter(
+    (order) => order.daysDifference > 3 || order.cancelRisk
+  );
+  const backorders = orders.filter((order) => order.status === "Backorder");
+  const readyValue = sum(readyOrders.map((order) => order.valueAvailable));
+  const atRiskValue = sum(atRiskOrders.map((order) => order.valueAvailable));
+  const lateOrCancelRiskValue = sum(lateOrCancelRisk.map((order) => order.valueAvailable));
+  const backorderValue = sum(backorders.map((order) => order.extendedPrice));
+  const warehouseLoad = ordersByWarehouse(orders);
+  const topWarehouse = warehouseLoad[0];
 
   return [
     {
-      label: "Total SOs",
-      value: formatNumber(totalSos),
-      detail: `${formatNumber(orders.length)} order lines visible`,
-      tone: "cyan",
-      trend: "+12 since 7 AM",
-    },
-    {
-      label: "Pipeline Value",
-      value: formatCurrency(pipeline, true),
-      detail: `${formatCurrency(pipeline)} available value`,
-      tone: "indigo",
-      trend: "+8.6% vs morning",
-    },
-    {
-      label: "Ready to Release",
-      value: formatNumber(ready),
-      detail: `${formatPercent((ready / Math.max(orders.length, 1)) * 100)} of visible orders`,
+      label: "Ready Value",
+      value: formatCurrency(readyValue, true),
+      detail: `${formatNumber(readyOrders.length)} lines ready now`,
       tone: "emerald",
-      trend: "highest impact queue",
+      trend: "available value only",
     },
     {
-      label: "Avg Days Diff",
-      value: avgDays.toFixed(1),
-      detail: avgDays <= 0 ? "ahead of request" : "needs attention",
-      tone: avgDays <= 0 ? "emerald" : avgDays > 3 ? "rose" : "amber",
-      trend: avgDays <= 0 ? "green" : "watch",
+      label: "At-Risk Value",
+      value: formatCurrency(atRiskValue, true),
+      detail: `${formatNumber(atRiskOrders.length)} lines at risk or delayed`,
+      tone: atRiskOrders.length > 0 ? "amber" : "emerald",
+      trend: "current snapshot",
     },
     {
-      label: "Warehouses Active",
-      value: formatNumber(warehouses),
-      detail: "proposed ship WH count",
+      label: "Late / Cancel Risk",
+      value: formatNumber(lateOrCancelRisk.length),
+      detail: `${formatCurrency(lateOrCancelRiskValue, true)} exposed value`,
+      tone: lateOrCancelRisk.length > 0 ? "rose" : "emerald",
+      trend: "days diff + cancel date",
+    },
+    {
+      label: "Backorder Value",
+      value: formatCurrency(backorderValue, true),
+      detail: `${formatNumber(backorders.length)} lines no proposed qty`,
+      tone: backorders.length > 0 ? "amber" : "emerald",
+      trend: "full order exposure",
+    },
+    {
+      label: "Warehouse Bottleneck",
+      value: topWarehouse?.name ?? "None",
+      detail: topWarehouse
+        ? `${formatNumber(topWarehouse.value)} visible lines routed`
+        : "No warehouse load",
       tone: "cyan",
-      trend: "EAST / WEST / SOUTH",
+      trend: "highest line count",
     },
     {
-      label: "On-Time Potential",
-      value: formatPercent(onTime),
-      detail: "based on days difference",
-      tone: onTime >= 90 ? "emerald" : onTime >= 75 ? "amber" : "rose",
-      trend: "+2.7 pp",
+      label: "Data Freshness",
+      value: dataHealth ? formatUtcTime(dataHealth.refreshedAt) : "Unknown",
+      detail: dataHealth
+        ? `${formatNumber(dataHealth.loadedOrderCount)} loaded from ${dataHealth.mode}`
+        : `${formatNumber(orders.length)} loaded`,
+      tone: freshnessTone(dataHealth),
+      trend: dataHealth?.isSample ? "sample mode" : "excel source",
     },
   ];
 }
@@ -158,11 +231,29 @@ export function daysDifferenceHeat(orders: OpsOrder[]) {
   }));
 }
 
-export function shipDateTrend(orders: OpsOrder[]) {
-  const anchor =
-    orders
-      .map((order) => safeDate(order.proposedShipDate) ?? safeDate(order.estimatedShipDate))
-      .find(Boolean) ?? new Date("2026-05-30T12:00:00");
+function dateKey(value: string | null) {
+  return safeDate(value) ? value : null;
+}
+
+function shipDateAnchorKey(orders: OpsOrder[], referenceDateKey?: string) {
+  const fallback = referenceDateKey ?? new Date().toISOString().slice(0, 10);
+  const dateKeys = orders
+    .flatMap((order) => [dateKey(order.proposedShipDate), dateKey(order.estimatedShipDate)])
+    .filter((value): value is string => Boolean(value))
+    .sort();
+  const nextAvailableDate = dateKeys.find((value) => value >= fallback);
+  if (nextAvailableDate) {
+    return nextAvailableDate;
+  }
+
+  const latestAvailableDate = dateKeys[dateKeys.length - 1];
+  return latestAvailableDate
+    ? format(addDays(parseISO(latestAvailableDate), -6), "yyyy-MM-dd")
+    : fallback;
+}
+
+export function shipDateTrend(orders: OpsOrder[], referenceDateKey?: string) {
+  const anchor = parseISO(shipDateAnchorKey(orders, referenceDateKey));
 
   return Array.from({ length: 7 }, (_, index) => {
     const day = addDays(anchor, index);
@@ -174,6 +265,13 @@ export function shipDateTrend(orders: OpsOrder[]) {
       proposed: orders.filter((order) => order.proposedShipDate === key).length,
     };
   });
+}
+
+export function shipDateWindowLabel(orders: OpsOrder[], referenceDateKey?: string) {
+  const trend = shipDateTrend(orders, referenceDateKey);
+  const first = trend[0]?.date ?? "Today";
+  const last = trend[trend.length - 1]?.date ?? "Next 7 days";
+  return `${first} - ${last}`;
 }
 
 export function topNewestOrders(orders: OpsOrder[], limit = 10) {
@@ -202,21 +300,25 @@ export function simulateRefresh(orders: OpsOrder[], cycle: RefreshCycle) {
 
   return orders.map((order, index) => {
     if (index % 7 === 0 && order.status !== "Complete") {
-      return {
+      const nextOrder = {
         ...order,
         daysDifference: Math.max(-5, order.daysDifference - delta),
-        status: order.daysDifference - delta <= 0 ? "Ready" : order.status,
+        status: order.daysDifference - delta <= 0 ? ("Ready" as const) : order.status,
         valueAvailable: Math.round(order.valueAvailable * 1.015),
       };
+
+      return { ...nextOrder, ...deriveOrderPriority(nextOrder) };
     }
 
     if (index % 11 === 0 && order.status === "Backorder") {
-      return {
+      const nextOrder = {
         ...order,
         proposedShipQuantity: Math.max(1, Math.round(order.soQty * 0.42)),
         status: "Partial" as const,
         valueAvailable: Math.round(order.extendedPrice * 0.42),
       };
+
+      return { ...nextOrder, ...deriveOrderPriority(nextOrder) };
     }
 
     return order;
@@ -300,7 +402,7 @@ export function smartInsights(orders: OpsOrder[]): SmartInsight[] {
       id: "backorder",
       tone: "amber",
       title: `${formatNumber(backorders.length)} lines on backorder`,
-      detail: "No proposed quantity available yet — check inventory ATP.",
+      detail: "No proposed quantity available yet - check inventory ATP.",
     });
   }
 

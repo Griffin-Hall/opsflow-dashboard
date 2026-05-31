@@ -8,6 +8,25 @@ export type OrderStatus =
 
 export type RefreshCycle = "7:00 AM" | "12:00 PM";
 
+export type DataHealthIssueSeverity = "info" | "warning" | "error";
+
+export type DataHealthIssue = {
+  severity: DataHealthIssueSeverity;
+  message: string;
+};
+
+export type DataHealth = {
+  mode: "excel" | "sample";
+  isSample: boolean;
+  rowCount: number;
+  loadedOrderCount: number;
+  refreshedAt: string;
+  workbookPath?: string;
+  missingColumns: string[];
+  droppedRows: number;
+  issues: DataHealthIssue[];
+};
+
 export type OpsOrder = {
   id: string;
   soNo: string;
@@ -39,6 +58,9 @@ export type OpsOrder = {
   activityFollowUpDate: string | null;
   activityNotes: string;
   status: OrderStatus;
+  priorityScore: number;
+  priorityReason: string;
+  cancelRisk: boolean;
 };
 
 export type OperationsPayload = {
@@ -47,6 +69,7 @@ export type OperationsPayload = {
   sourceLabel: string;
   rowCount: number;
   refreshedAt: string;
+  dataHealth: DataHealth;
 };
 
 export type KpiMetric = {
