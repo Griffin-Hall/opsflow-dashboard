@@ -34,11 +34,19 @@ const labelIcons: Record<string, LucideIcon> = {
 };
 
 const toneClasses: Record<KpiMetric["tone"], string> = {
-  amber: "from-amber-400/16 to-transparent text-amber-200 ring-amber-300/25",
-  cyan: "from-cyan-400/16 to-transparent text-cyan-200 ring-cyan-300/25",
-  emerald: "from-emerald-400/16 to-transparent text-emerald-200 ring-emerald-300/25",
-  indigo: "from-indigo-400/16 to-transparent text-indigo-200 ring-indigo-300/25",
-  rose: "from-rose-400/16 to-transparent text-rose-200 ring-rose-300/25",
+  amber: "border-amber-300/45 bg-amber-300/10 text-amber-200 ring-amber-300/25",
+  cyan: "border-cyan-300/45 bg-cyan-300/10 text-cyan-200 ring-cyan-300/25",
+  emerald: "border-emerald-300/45 bg-emerald-300/10 text-emerald-200 ring-emerald-300/25",
+  indigo: "border-indigo-300/45 bg-indigo-300/10 text-indigo-200 ring-indigo-300/25",
+  rose: "border-rose-300/45 bg-rose-300/10 text-rose-200 ring-rose-300/25",
+};
+
+const toneBarClasses: Record<KpiMetric["tone"], string> = {
+  amber: "bg-amber-300/70",
+  cyan: "bg-cyan-300/70",
+  emerald: "bg-emerald-300/70",
+  indigo: "bg-indigo-300/70",
+  rose: "bg-rose-300/70",
 };
 
 export function KpiHero({ metrics }: { metrics: KpiMetric[] }) {
@@ -65,41 +73,39 @@ export function KpiHero({ metrics }: { metrics: KpiMetric[] }) {
           >
             <Card
               className={cn(
-                "h-full overflow-hidden border-white/10 bg-white/[0.045] text-white shadow-xl shadow-black/20 transition-colors",
-                featured && "border-emerald-300/30 bg-emerald-300/[0.06] ring-1 ring-emerald-300/20"
+                "ops-surface h-full overflow-hidden rounded-xl text-white transition-colors",
+                featured && "border-emerald-300/25 bg-emerald-300/[0.055]"
               )}
             >
-              <CardContent className="relative p-5">
-                <div
-                  className={cn(
-                    "absolute inset-x-0 top-0 h-24 bg-gradient-to-b",
-                    toneClasses[metric.tone]
-                  )}
+              <CardContent className="relative p-4">
+                <span
+                  aria-hidden
+                  className={cn("absolute inset-x-4 top-0 h-px", toneBarClasses[metric.tone])}
                 />
                 <div className="relative flex items-start justify-between gap-3">
-                  <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                  <p className="text-[11px] font-semibold uppercase tracking-normal text-slate-400">
                     {metric.label}
                   </p>
                   <span
                     className={cn(
-                      "rounded-xl bg-white/[0.06] p-2 ring-1",
+                      "rounded-lg border p-1.5 ring-1",
                       toneClasses[metric.tone]
                     )}
                   >
-                    <Icon className="size-5" />
+                    <Icon className="size-4" />
                   </span>
                 </div>
                 <p
                   className={cn(
-                    "relative mt-3 font-semibold tabular-nums tracking-tight text-white",
-                    featured ? "text-3xl" : "text-2xl"
+                    "relative mt-3 font-semibold tabular-nums tracking-normal text-white",
+                    featured ? "text-[1.9rem] leading-none" : "text-2xl leading-none"
                   )}
                 >
                   {metric.value}
                 </p>
-                <div className="relative mt-3 flex items-center justify-between gap-2 text-xs">
+                <div className="relative mt-3 flex items-end justify-between gap-2 text-xs">
                   <span className="text-slate-400">{metric.detail}</span>
-                  <span className={cn("inline-flex items-center gap-1", toneClasses[metric.tone])}>
+                  <span className={cn("inline-flex shrink-0 items-center gap-1", toneClasses[metric.tone])}>
                     {metric.trend}
                   </span>
                 </div>

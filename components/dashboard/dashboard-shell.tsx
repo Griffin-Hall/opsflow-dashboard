@@ -112,14 +112,14 @@ function Sidebar({
   return (
     <aside
       className={cn(
-        "flex h-full flex-col border-r border-white/10 bg-slate-950/82 text-white backdrop-blur-xl transition-[width] duration-300",
+        "flex h-full flex-col border-r border-white/[0.08] bg-[#070a12]/95 text-white transition-[width] duration-300",
         collapsed ? "w-[76px]" : "w-[252px]"
       )}
     >
       <div className="flex h-16 items-center justify-between px-4">
         <div className="flex items-center gap-3">
-          <div className="flex size-10 items-center justify-center rounded-xl bg-cyan-300/15 text-cyan-200 ring-1 ring-cyan-300/30">
-            <Sparkles />
+          <div className="flex size-9 items-center justify-center rounded-lg bg-cyan-300/10 text-cyan-200 ring-1 ring-cyan-300/25">
+            <Sparkles className="size-4" />
           </div>
           {!collapsed && (
             <div>
@@ -147,10 +147,10 @@ function Sidebar({
             <button
               aria-current={active ? "page" : undefined}
               className={cn(
-                "flex h-10 items-center gap-3 rounded-xl px-3 text-sm transition",
+                "flex h-9 items-center gap-3 rounded-lg px-3 text-sm transition",
                 active
-                  ? "bg-cyan-300/12 text-cyan-100 ring-1 ring-cyan-300/20"
-                  : "text-slate-400 hover:bg-white/[0.04] hover:text-white",
+                  ? "bg-white/[0.07] text-cyan-100 ring-1 ring-white/10"
+                  : "text-slate-400 hover:bg-white/[0.045] hover:text-white",
                 collapsed && "justify-center px-0"
               )}
               key={item.label}
@@ -166,7 +166,7 @@ function Sidebar({
       <div className="p-3">
         <div
           className={cn(
-            "rounded-2xl border border-white/10 bg-white/[0.04] p-3",
+            "rounded-xl border border-white/[0.08] bg-white/[0.035] p-3",
             collapsed && "p-2"
           )}
         >
@@ -201,7 +201,7 @@ function DataHealthStrip({
         : "border-cyan-300/25 bg-cyan-300/10 text-cyan-100";
 
   return (
-    <section className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-slate-300">
+    <section className="ops-surface-flat rounded-xl px-4 py-3 text-sm text-slate-300">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex flex-wrap items-center gap-2">
           <ShieldCheck className="size-4 text-cyan-300" />
@@ -248,7 +248,7 @@ function PipelineView({ orders, extraMetrics }: { orders: OpsOrder[]; extraMetri
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <section className="rounded-3xl border border-white/10 bg-white/[0.045] p-5 text-white">
+        <section className="ops-surface rounded-xl p-5 text-white">
           <h3 className="flex items-center gap-2 text-base font-semibold">
             <TrendingUp className="size-4 text-cyan-300" />
             Top Customers by Available Value
@@ -274,7 +274,7 @@ function PipelineView({ orders, extraMetrics }: { orders: OpsOrder[]; extraMetri
           </div>
         </section>
 
-        <section className="rounded-3xl border border-white/10 bg-white/[0.045] p-5 text-white">
+        <section className="ops-surface rounded-xl p-5 text-white">
           <h3 className="flex items-center gap-2 text-base font-semibold">
             <PackageCheck className="size-4 text-cyan-300" />
             Volume by Proposed Ship Warehouse
@@ -340,7 +340,7 @@ function SettingsView({
         ],
       ].map(([label, value, detail]) => (
         <div
-          className="rounded-3xl border border-white/10 bg-white/[0.045] p-5 text-white"
+          className="ops-surface rounded-xl p-5 text-white"
           key={label}
         >
           <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</p>
@@ -348,7 +348,7 @@ function SettingsView({
           <p className="mt-2 text-sm leading-6 text-slate-400">{detail}</p>
         </div>
       ))}
-      <div className="rounded-3xl border border-cyan-300/20 bg-cyan-300/[0.06] p-5 text-cyan-50 lg:col-span-3">
+      <div className="rounded-xl border border-cyan-300/20 bg-cyan-300/[0.055] p-5 text-cyan-50 lg:col-span-3">
         <h3 className="flex items-center gap-2 text-base font-semibold">
           <Settings className="size-4" />
           Workbook Configuration
@@ -441,9 +441,9 @@ export function DashboardShell({ initialData }: { initialData: OperationsPayload
   }
 
   return (
-    <main className="min-h-dvh bg-[radial-gradient(circle_at_top_left,#0f2b46_0,#020617_32%,#030712_100%)] text-white">
-      <div className="fixed inset-0 pointer-events-none opacity-45">
-        <div className="data-stream absolute inset-x-0 top-0 h-[360px]" />
+    <main className="ops-page min-h-dvh text-white">
+      <div className="pointer-events-none fixed inset-0 opacity-35">
+        <div className="data-stream absolute inset-x-0 top-0 h-[300px]" />
       </div>
 
       <div className="relative flex min-h-dvh">
@@ -458,7 +458,7 @@ export function DashboardShell({ initialData }: { initialData: OperationsPayload
         </div>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className="sticky top-0 z-40 border-b border-white/10 bg-slate-950/78 px-4 py-3 backdrop-blur-xl sm:px-6">
+          <header className="sticky top-0 z-40 border-b border-white/[0.08] bg-[#080b12]/90 px-4 py-3 backdrop-blur-xl sm:px-6">
             <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
               <div className="flex items-center gap-3">
                 <Sheet>
@@ -467,7 +467,7 @@ export function DashboardShell({ initialData }: { initialData: OperationsPayload
                       <Menu />
                     </Button>
                   </SheetTrigger>
-                  <SheetContent className="border-white/10 bg-slate-950 p-0" side="left">
+                  <SheetContent className="border-white/[0.08] bg-[#070a12] p-0" side="left">
                     <SheetHeader className="sr-only">
                       <SheetTitle>OpsFlow navigation</SheetTitle>
                       <SheetDescription>Mobile operations dashboard navigation.</SheetDescription>
@@ -482,7 +482,7 @@ export function DashboardShell({ initialData }: { initialData: OperationsPayload
                 </Sheet>
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <h1 className="text-lg font-semibold tracking-normal sm:text-xl">
+                    <h1 className="text-lg font-semibold tracking-normal text-slate-50 sm:text-xl">
                       Acme Global Supply - Operations Center
                     </h1>
                     <Badge
@@ -507,14 +507,14 @@ export function DashboardShell({ initialData }: { initialData: OperationsPayload
                   <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
                   <Input
                     aria-label="Search orders"
-                    className="h-9 border-white/10 bg-slate-950/70 pl-9 text-white placeholder:text-slate-500"
+                    className="ops-control h-9 pl-9 text-white placeholder:text-slate-500"
                     onChange={(event) => setGlobalSearch(event.target.value)}
                     placeholder="Search SO, BP, SKU, customers..."
                     value={globalSearch}
                   />
                 </div>
                 <Select onValueChange={setWarehouse} value={warehouse}>
-                  <SelectTrigger className="h-9 border-white/10 bg-slate-950/70 text-white">
+                  <SelectTrigger className="ops-control h-9 text-white">
                     <SelectValue placeholder="Warehouse" />
                   </SelectTrigger>
                   <SelectContent>
@@ -532,7 +532,7 @@ export function DashboardShell({ initialData }: { initialData: OperationsPayload
                   onValueChange={(value) => setStatus(value as OrderStatus | "All")}
                   value={status}
                 >
-                  <SelectTrigger className="h-9 border-white/10 bg-slate-950/70 text-white">
+                  <SelectTrigger className="ops-control h-9 text-white">
                     <SelectValue placeholder="Status" />
                   </SelectTrigger>
                   <SelectContent>
@@ -580,7 +580,7 @@ export function DashboardShell({ initialData }: { initialData: OperationsPayload
             {refreshing ? (
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
                 {Array.from({ length: 6 }, (_, index) => (
-                  <Skeleton className="h-[150px] rounded-3xl bg-white/[0.06]" key={index} />
+                  <Skeleton className="h-[138px] rounded-xl bg-white/[0.06]" key={index} />
                 ))}
               </div>
             ) : (
@@ -591,28 +591,28 @@ export function DashboardShell({ initialData }: { initialData: OperationsPayload
               onValueChange={(value) => setTab(value as DashboardTab)}
               value={tab}
             >
-              <TabsList className="relative z-10 grid h-auto w-full max-w-full grid-cols-2 justify-start gap-1 overflow-visible bg-slate-950/60 p-1 sm:inline-flex sm:h-9 sm:w-fit sm:grid-cols-none sm:overflow-x-auto sm:overflow-y-hidden sm:p-[3px]">
-                <TabsTrigger className="h-8 gap-1.5" value="overview">
+              <TabsList className="ops-surface-flat relative z-10 !grid !h-[112px] w-full max-w-full grid-cols-2 gap-1 overflow-hidden rounded-xl p-1 sm:!inline-flex sm:!h-9 sm:w-fit sm:grid-cols-none sm:overflow-x-auto sm:overflow-y-hidden">
+                <TabsTrigger className="h-8 min-w-0 gap-1 px-2 text-xs sm:text-sm" value="overview">
                   <LayoutDashboard />
                   Overview
                 </TabsTrigger>
-                <TabsTrigger className="h-8 gap-1.5" value="orders">
+                <TabsTrigger className="h-8 min-w-0 gap-1 px-2 text-xs sm:text-sm" value="orders">
                   <Table2 />
                   Live Orders
                 </TabsTrigger>
-                <TabsTrigger className="h-8 gap-1.5" value="ready">
+                <TabsTrigger className="h-8 min-w-0 gap-1 px-2 text-xs sm:text-sm" value="ready">
                   <PackageCheck />
                   Ready to Release
                 </TabsTrigger>
-                <TabsTrigger className="h-8 gap-1.5" value="pipeline">
+                <TabsTrigger className="h-8 min-w-0 gap-1 px-2 text-xs sm:text-sm" value="pipeline">
                   <BarChart3 />
                   Pipeline
                 </TabsTrigger>
-                <TabsTrigger className="h-8 gap-1.5" value="activities">
+                <TabsTrigger className="h-8 min-w-0 gap-1 px-2 text-xs sm:text-sm" value="activities">
                   <Activity />
                   Activities
                 </TabsTrigger>
-                <TabsTrigger className="h-8 gap-1.5" value="settings">
+                <TabsTrigger className="h-8 min-w-0 gap-1 px-2 text-xs sm:text-sm" value="settings">
                   <Settings />
                   Settings
                 </TabsTrigger>
@@ -645,7 +645,7 @@ export function DashboardShell({ initialData }: { initialData: OperationsPayload
 
               <TabsContent className="mt-4" value="ready">
                 <div className="flex flex-col gap-3">
-                  <div className="flex items-center gap-2 rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.06] px-4 py-3 text-sm text-emerald-100">
+                  <div className="flex items-center gap-2 rounded-xl border border-emerald-300/20 bg-emerald-300/[0.055] px-4 py-3 text-sm text-emerald-100">
                     <PackageCheck className="size-4" />
                     {formatNumber(readyOrders.length)} lines have full proposed quantity and ATP dates.
                     Generate the daily ops sheet to release them.

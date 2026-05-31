@@ -85,7 +85,11 @@ function HeaderButton({
   onClick: () => void;
 }) {
   return (
-    <Button className="-ml-2 h-7 px-2 text-xs" onClick={onClick} variant="ghost">
+    <Button
+      className="-ml-2 h-7 px-2 text-xs text-slate-400 hover:text-slate-100"
+      onClick={onClick}
+      variant="ghost"
+    >
       {children}
       <ArrowUpDown data-icon="inline-end" />
     </Button>
@@ -473,19 +477,21 @@ export function OrdersTable({
   }
 
   return (
-    <section className="min-w-0 rounded-3xl border border-white/10 bg-white/[0.045] p-4 text-white shadow-2xl shadow-black/20">
+    <section className="ops-surface min-w-0 rounded-xl p-4 text-white">
       <div className="flex flex-col gap-4">
         <div className="flex flex-col justify-between gap-3 xl:flex-row xl:items-center">
           <div>
             <div className="flex items-center gap-2">
-              <PackageCheck className="text-cyan-300" />
-              <h2 className="text-lg font-semibold tracking-normal">Live Orders</h2>
-              <Badge className="border-cyan-300/20 bg-cyan-300/10 text-cyan-100">
+              <PackageCheck className="size-5 text-cyan-300" />
+              <h2 className="text-base font-semibold tracking-normal text-slate-50">
+                Live Orders
+              </h2>
+              <Badge className="rounded-md border-cyan-300/20 bg-cyan-300/10 text-cyan-100">
                 {formatNumber(filteredOrders.length)} visible
               </Badge>
             </div>
             <p className="mt-1 text-sm text-slate-400">
-              Search, filter, sort, select rows, toggle columns, and generate the daily ops sheet.
+              Search, filter, sort, select rows, toggle columns, and export the daily ops view.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -504,14 +510,14 @@ export function OrdersTable({
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
             <Input
-              className="h-9 border-white/10 bg-slate-950/70 pl-9 text-white placeholder:text-slate-500"
+              className="ops-control h-9 pl-9 text-white placeholder:text-slate-500"
               onChange={(event) => setGlobalSearch(event.target.value)}
               placeholder="Search SO, BP, SKU, product, notes..."
               value={globalSearch}
             />
           </div>
           <Select onValueChange={setWarehouse} value={warehouse}>
-            <SelectTrigger className="h-9 min-w-36 border-white/10 bg-slate-950/70 text-white">
+            <SelectTrigger className="ops-control h-9 min-w-36 text-white">
               <SelectValue placeholder="Warehouse" />
             </SelectTrigger>
             <SelectContent>
@@ -529,7 +535,7 @@ export function OrdersTable({
             onValueChange={(value) => setStatus(value as OrderStatus | "All")}
             value={status}
           >
-            <SelectTrigger className="h-9 min-w-32 border-white/10 bg-slate-950/70 text-white">
+            <SelectTrigger className="ops-control h-9 min-w-32 text-white">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
@@ -544,7 +550,7 @@ export function OrdersTable({
             </SelectContent>
           </Select>
           <Select onValueChange={(value) => setDaysFilter(value as DaysFilter)} value={daysFilter}>
-            <SelectTrigger className="h-9 min-w-32 border-white/10 bg-slate-950/70 text-white">
+            <SelectTrigger className="ops-control h-9 min-w-32 text-white">
               <SelectValue placeholder="Days" />
             </SelectTrigger>
             <SelectContent>
@@ -584,7 +590,7 @@ export function OrdersTable({
 
         <div className="flex flex-wrap gap-2">
           <Button
-            className={cn(readyOnly && "border-cyan-300/40 bg-cyan-300/10 text-cyan-100")}
+            className={cn(readyOnly && "border-cyan-300/35 bg-cyan-300/10 text-cyan-100")}
             onClick={() => setReadyOnly(!readyOnly)}
             variant="outline"
           >
@@ -592,7 +598,7 @@ export function OrdersTable({
             Show Only Ready
           </Button>
           <Button
-            className={cn(highValueOnly && "border-indigo-300/40 bg-indigo-300/10 text-indigo-100")}
+            className={cn(highValueOnly && "border-indigo-300/35 bg-indigo-300/10 text-indigo-100")}
             onClick={() => setHighValueOnly(!highValueOnly)}
             variant="outline"
           >
@@ -604,13 +610,16 @@ export function OrdersTable({
           </span>
         </div>
 
-        <div className="max-w-full overflow-hidden rounded-2xl border border-white/10">
+        <div className="max-w-full overflow-hidden rounded-lg border border-white/[0.08] bg-[#070a12]/60">
           <Table className="min-w-[1080px]">
-            <TableHeader className="bg-slate-950/80">
+            <TableHeader className="bg-[#090d14]">
               {table.getHeaderGroups().map((headerGroup) => (
-                <TableRow className="border-white/10 hover:bg-transparent" key={headerGroup.id}>
+                <TableRow className="border-white/[0.08] hover:bg-transparent" key={headerGroup.id}>
                   {headerGroup.headers.map((header) => (
-                    <TableHead className="h-11 text-xs text-slate-400" key={header.id}>
+                    <TableHead
+                      className="h-10 text-[11px] font-semibold uppercase tracking-normal text-slate-500"
+                      key={header.id}
+                    >
                       {header.isPlaceholder
                         ? null
                         : flexRender(header.column.columnDef.header, header.getContext())}
@@ -623,12 +632,12 @@ export function OrdersTable({
               {table.getRowModel().rows.length ? (
                 table.getRowModel().rows.map((row) => (
                   <TableRow
-                    className="border-white/10 transition-colors hover:bg-cyan-300/[0.04] data-[state=selected]:bg-cyan-300/[0.08]"
+                    className="border-white/[0.07] transition-colors hover:bg-white/[0.035] data-[state=selected]:bg-cyan-300/[0.08]"
                     data-state={row.getIsSelected() && "selected"}
                     key={row.id}
                   >
                     {row.getVisibleCells().map((cell) => (
-                      <TableCell className="py-3" key={cell.id}>
+                      <TableCell className="py-2.5" key={cell.id}>
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </TableCell>
                     ))}
@@ -694,7 +703,7 @@ export function OrdersTable({
       </div>
 
       <Dialog onOpenChange={setReportOpen} open={reportOpen}>
-        <DialogContent className="border-white/10 bg-slate-950 text-white sm:max-w-lg">
+        <DialogContent className="border-white/10 bg-[#080b12] text-white sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-xl">
               <CheckCircle2 className="text-emerald-300" />
@@ -705,7 +714,7 @@ export function OrdersTable({
               filtered dashboard state, so it mirrors the morning workflow.
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm">
+          <div className="grid gap-3 rounded-xl border border-white/10 bg-white/[0.04] p-4 text-sm">
             <div className="flex justify-between">
               <span className="text-slate-400">Rows included</span>
               <span className="font-medium text-white">{formatNumber(filteredOrders.length)}</span>

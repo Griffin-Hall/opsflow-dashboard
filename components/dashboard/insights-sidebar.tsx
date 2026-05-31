@@ -52,7 +52,7 @@ function SmartInsightsPanel({ orders }: { orders: OpsOrder[] }) {
       {insights.map((insight) => (
         <div
           className={cn(
-            "rounded-2xl border p-3.5",
+            "rounded-xl border p-3",
             insightToneClasses[insight.tone]
           )}
           key={insight.id}
@@ -132,7 +132,7 @@ function NewestOrdersPanel({ orders }: { orders: OpsOrder[] }) {
     <div className="flex flex-col gap-2">
       {newest.map((order) => (
         <div
-          className="flex items-center gap-3 rounded-2xl border border-white/10 bg-slate-950/45 p-3"
+          className="flex items-center gap-3 rounded-lg border border-white/[0.08] bg-white/[0.025] p-3"
           key={order.id}
         >
           <span className="font-mono text-xs text-cyan-200">{order.soNo}</span>
@@ -165,7 +165,7 @@ export function InsightsSidebar({
 
   if (collapsed) {
     return (
-      <aside className="flex flex-col items-center gap-3 rounded-3xl border border-white/10 bg-white/[0.045] p-2 text-white">
+      <aside className="ops-surface flex flex-col items-center gap-3 rounded-xl p-2 text-white">
         <Button
           aria-label="Expand insights panel"
           onClick={() => onCollapsedChange(false)}
@@ -187,9 +187,9 @@ export function InsightsSidebar({
   }
 
   return (
-    <aside className="flex flex-col rounded-3xl border border-white/10 bg-white/[0.045] p-4 text-white">
+    <aside className="ops-surface flex flex-col rounded-xl p-4 text-white">
       <div className="mb-3 flex items-center justify-between gap-2">
-        <span className="flex items-center gap-2 text-sm font-semibold">
+        <span className="flex items-center gap-2 text-sm font-semibold text-slate-50">
           <Sparkles className="size-4 text-cyan-300" />
           Insights
         </span>
@@ -204,7 +204,7 @@ export function InsightsSidebar({
       </div>
 
       <Tabs className="gap-3" defaultValue="smart">
-        <TabsList className="w-full">
+        <TabsList className="ops-surface-flat h-9 w-full rounded-lg p-1">
           <TabsTrigger value="smart">Smart</TabsTrigger>
           <TabsTrigger value="activity">Activity</TabsTrigger>
           <TabsTrigger value="newest">Newest</TabsTrigger>

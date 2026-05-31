@@ -74,26 +74,26 @@ export function DashboardCharts({
   if (!ready) {
     return (
       <section className="grid gap-4 xl:grid-cols-[0.95fr_1.1fr_0.95fr]">
-        {["Orders by Proposed Ship WH", "Top Customers by Available Value", "Status + Days Difference Heat"].map(
+        {["Warehouse Allocation", "Top Customers by Available Value", "Status + Days Difference Heat"].map(
           (title) => (
-            <Card className="border-white/10 bg-white/[0.045] text-white" key={title}>
+            <Card className="ops-surface rounded-xl text-white" key={title}>
               <CardHeader className="pb-2">
                 <CardTitle className="text-base">{title}</CardTitle>
               </CardHeader>
               <CardContent>
-                <Skeleton className="h-[270px] rounded-2xl bg-white/[0.06]" />
+                <Skeleton className="h-[270px] rounded-xl bg-white/[0.06]" />
               </CardContent>
             </Card>
           )
         )}
-        <Card className="border-white/10 bg-white/[0.045] text-white xl:col-span-3">
+        <Card className="ops-surface rounded-xl text-white xl:col-span-3">
           <CardHeader className="pb-2">
             <CardTitle className="text-base">
               ATP vs Estimated Ship Dates ({trendWindow})
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <Skeleton className="h-[250px] rounded-2xl bg-white/[0.06]" />
+            <Skeleton className="h-[250px] rounded-xl bg-white/[0.06]" />
           </CardContent>
         </Card>
       </section>
@@ -102,9 +102,9 @@ export function DashboardCharts({
 
   return (
     <section className="grid gap-4 xl:grid-cols-[0.95fr_1.1fr_0.95fr]">
-      <Card className="border-white/10 bg-white/[0.045] text-white">
+      <Card className="ops-surface rounded-xl text-white">
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Orders by Proposed Ship WH</CardTitle>
+          <CardTitle className="text-base">Warehouse Allocation</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-3 lg:grid-cols-[1fr_0.9fr] xl:grid-cols-1 2xl:grid-cols-[1fr_0.9fr]">
           <ChartContainer
@@ -144,7 +144,7 @@ export function DashboardCharts({
         </CardContent>
       </Card>
 
-      <Card className="border-white/10 bg-white/[0.045] text-white">
+      <Card className="ops-surface rounded-xl text-white">
         <CardHeader className="pb-2">
           <CardTitle className="text-base">Top Customers by Available Value</CardTitle>
         </CardHeader>
@@ -188,7 +188,7 @@ export function DashboardCharts({
         </CardContent>
       </Card>
 
-      <Card className="border-white/10 bg-white/[0.045] text-white">
+      <Card className="ops-surface rounded-xl text-white">
         <CardHeader className="pb-2">
           <CardTitle className="text-base">Status + Days Difference Heat</CardTitle>
         </CardHeader>
@@ -223,7 +223,7 @@ export function DashboardCharts({
         </CardContent>
       </Card>
 
-      <Card className="border-white/10 bg-white/[0.045] text-white xl:col-span-3">
+      <Card className="ops-surface rounded-xl text-white xl:col-span-3">
         <CardHeader className="pb-2">
           <CardTitle className="text-base">
             ATP vs Estimated Ship Dates ({trendWindow})

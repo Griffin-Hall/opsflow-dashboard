@@ -15,17 +15,17 @@ export function ActivityFeed({ orders }: { orders: OpsOrder[] }) {
 
   return (
     <aside className="flex flex-col gap-4">
-      <button className="group rounded-3xl border border-cyan-300/25 bg-cyan-300/[0.08] p-4 text-left shadow-xl shadow-cyan-950/20 transition hover:bg-cyan-300/[0.12]">
+      <button className="group rounded-xl border border-cyan-300/20 bg-cyan-300/[0.06] p-4 text-left transition hover:bg-cyan-300/[0.1]">
         <div className="flex items-center justify-between gap-3">
           <span className="flex items-center gap-2 text-sm font-medium text-cyan-100">
-            <AlertTriangle />
+            <AlertTriangle className="size-4" />
             AI Insight
           </span>
-          <Badge className="border-cyan-300/20 bg-cyan-300/10 text-cyan-100">
+          <Badge className="rounded-md border-cyan-300/20 bg-cyan-300/10 text-cyan-100">
             Live
           </Badge>
         </div>
-        <p className="mt-3 text-xl font-semibold tracking-normal text-white">
+        <p className="mt-3 text-lg font-semibold tracking-normal text-white">
           {cancelRisk} orders risk Cancel By Date
         </p>
         <p className="mt-2 text-sm leading-6 text-slate-400">
@@ -34,16 +34,16 @@ export function ActivityFeed({ orders }: { orders: OpsOrder[] }) {
         </p>
       </button>
 
-      <Card className="border-white/10 bg-white/[0.045] text-white">
+      <Card className="ops-surface rounded-xl text-white">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
-            <MessageSquareText className="text-cyan-300" />
+            <MessageSquareText className="size-4 text-cyan-300" />
             Today&apos;s Activity Feed
           </CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           {feed.map((order) => (
-            <div className="rounded-2xl border border-white/10 bg-slate-950/50 p-3" key={order.id}>
+            <div className="rounded-lg border border-white/[0.08] bg-white/[0.025] p-3" key={order.id}>
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="font-medium text-white">{order.activitySubject || "Ops update"}</p>
@@ -52,7 +52,7 @@ export function ActivityFeed({ orders }: { orders: OpsOrder[] }) {
                   </p>
                 </div>
                 <span className="flex shrink-0 items-center gap-1 text-xs text-slate-500">
-                  <Clock3 />
+                  <Clock3 className="size-3" />
                   {formatShortDate(order.activityDate)}
                 </span>
               </div>
