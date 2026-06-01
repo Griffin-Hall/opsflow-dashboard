@@ -40,7 +40,7 @@ jobs:
         env:
           GITHUB_PAGES: "true"
           NEXT_PUBLIC_BASE_PATH: /opsflow-dashboard
-          OPSFLOW_USE_SAMPLE_DATA: "true"
+          OPSFLOW_USE_SNAPSHOT_DATA: "true"
         run: npm run build:pages
 
       - name: Disable Jekyll

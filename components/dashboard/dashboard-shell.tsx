@@ -53,7 +53,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   computeMetrics,
   ordersByWarehouse,
-  simulateRefresh,
   statusOrder,
   topCustomersByValue,
   uniqueWarehouses,
@@ -330,9 +329,9 @@ function SettingsView({
           sourceLabel,
           dataHealth.isSample
             ? "Portfolio-safe sample rows are being displayed."
-            : "Reads the configured workbook on the server.",
+            : "Reads the configured workbook or its real static snapshot.",
         ],
-        ["Refresh Cycle", cycle, "Sample mode toggles between morning and midday snapshots."],
+        ["Refresh Cycle", cycle, "Refresh reloads the workbook-backed dashboard data."],
         [
           "Rows Loaded",
           formatNumber(dataHealth.loadedOrderCount),
@@ -355,8 +354,8 @@ function SettingsView({
         </h3>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-cyan-100/80">
           Override the local workbook with <span className="font-mono">OPSFLOW_EXCEL_PATH</span>.
-          If no workbook is available, the dashboard uses portfolio-safe sample data and reports
-          the reason above.
+          If no workbook is available, the dashboard uses the committed real workbook snapshot and
+          reports the reason above.
         </p>
         <div className="mt-4 grid gap-2 text-xs text-cyan-100/80 md:grid-cols-2">
           <span>Last refreshed: {formatUtcTimestamp(dataHealth.refreshedAt)}</span>
@@ -421,8 +420,7 @@ export function DashboardShell({ initialData }: { initialData: OperationsPayload
     try {
       const response = await fetch(appPath("/api/orders"), { cache: "no-store" });
       const payload = (await response.json()) as OperationsPayload;
-      const nextOrders =
-        payload.source === "sample" ? simulateRefresh(payload.orders, nextCycle) : payload.orders;
+      const nextOrders = payload.orders;
       setOrders(nextOrders);
       setSourceLabel(payload.sourceLabel);
       setRowCount(payload.rowCount);

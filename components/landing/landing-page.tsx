@@ -50,15 +50,15 @@ function launchDashboard() {
   window.open(appPath("/dashboard"), "_blank", "noopener,noreferrer");
 }
 
-function simulateMorningRefresh() {
+function showMorningRefreshSignal() {
   confetti({
     colors: ["#22d3ee", "#818cf8", "#34d399", "#f59e0b"],
     particleCount: 120,
     spread: 72,
     startVelocity: 38,
   });
-  toast.success("Morning refresh simulated", {
-    description: "7:00 AM and 12:00 PM ops snapshots are ready.",
+  toast.success("Workbook-backed refresh ready", {
+    description: "The dashboard reloads order lines from the real workbook data source.",
   });
 }
 
@@ -130,15 +130,14 @@ export function LandingPage() {
             >
               <div className="inline-flex w-fit items-center gap-2 rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-sm text-cyan-100">
                 <Sparkles />
-                Demo Mode • 100% fake-safe display, Excel-powered locally
+                Real Workbook Data - Excel-powered operations dashboard
               </div>
               <h1 className="max-w-4xl text-5xl font-semibold leading-[1.02] tracking-normal text-white sm:text-6xl lg:text-7xl">
                 From 2-Hour Excel Hell{" "}
                 <span className="text-cyan-300">to Instant Ops Clarity</span>
               </h1>
               <p className="max-w-2xl text-lg leading-8 text-slate-300">
-                Simulated real daily workflow • Data refreshes at 7:00 AM &
-                12:00 PM • Built for my portfolio.
+                Live operational workflow - workbook-backed data refreshes and release-ready order visibility.
               </p>
             </motion.div>
 
@@ -167,11 +166,11 @@ export function LandingPage() {
               </Button>
               <Button
                 className="h-11 border-cyan-300/20 bg-white/[0.04] px-5 text-cyan-100 hover:bg-cyan-300/10"
-                onClick={simulateMorningRefresh}
+                onClick={showMorningRefreshSignal}
                 variant="outline"
               >
                 <Zap data-icon="inline-start" />
-                Simulate My Morning Refresh
+                Check Workbook Refresh
               </Button>
               <Button
                 asChild
@@ -305,7 +304,7 @@ export function LandingPage() {
               {[
                 ["Top 10 newest orders", "SO, customer name, and available value surfaced immediately."],
                 ["Release-ready queue", "Warehouse and risk filters turn a messy sheet into action."],
-                ["Daily ops sheet", "One click simulates the clean morning report workflow."],
+                ["Daily ops sheet", "One click exports the current workbook-backed order view."],
               ].map(([title, body]) => (
                 <div
                   className="flex gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-4"

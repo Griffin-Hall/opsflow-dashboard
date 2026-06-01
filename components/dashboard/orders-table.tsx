@@ -411,7 +411,7 @@ export function OrdersTable({
               <DropdownMenuItem
                 onClick={() =>
                   toast.success("Release queued", {
-                    description: `${row.original.soNo} moved to the simulated release queue.`,
+                    description: `${row.original.soNo} moved to the release review queue.`,
                   })
                 }
               >

@@ -1,12 +1,13 @@
 import { existsSync } from "node:fs";
+import { readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { join } from "node:path";
 import { differenceInCalendarDays, parseISO } from "date-fns";
 import { deriveOrderPriority } from "@/lib/data-utils";
-import { fakeOrders } from "@/lib/fakeData";
 import type { DataHealthIssue, OperationsPayload, OpsOrder, OrderStatus } from "@/lib/types";
 
 const DEFAULT_EXCEL_PATH = join(process.cwd(), "data", "operations.xlsx");
+const DEFAULT_SNAPSHOT_PATH = join(process.cwd(), "data", "operations-snapshot.json");
 const REQUIRED_COLUMNS = [
   "SO No",
   "BP No",
@@ -36,7 +37,7 @@ type CellValue = string | number | boolean | Date | null | undefined;
 type ReadSheet = (path: string) => Promise<CellValue[][]>;
 const nodeRequire = createRequire(import.meta.url);
 
-function samplePayload(
+function unavailablePayload(
   refreshedAt: string,
   workbookPath: string,
   issues: DataHealthIssue[],
@@ -47,21 +48,58 @@ function samplePayload(
   } = {}
 ): OperationsPayload {
   return {
-    orders: fakeOrders,
+    orders: [],
     refreshedAt,
-    rowCount: fakeOrders.length,
-    source: "sample",
-    sourceLabel: "Sample portfolio data",
+    rowCount: 0,
+    source: "excel",
+    sourceLabel: "Real workbook unavailable",
     dataHealth: {
       droppedRows: options.droppedRows ?? 0,
-      isSample: true,
+      isSample: false,
       issues,
-      loadedOrderCount: fakeOrders.length,
+      loadedOrderCount: 0,
       missingColumns: options.missingColumns ?? [],
-      mode: "sample",
+      mode: "excel",
       refreshedAt,
-      rowCount: options.rowCount ?? fakeOrders.length,
+      rowCount: options.rowCount ?? 0,
       workbookPath,
+    },
+  };
+}
+
+async function loadSnapshotPayload(
+  snapshotPath: string,
+  issues: DataHealthIssue[] = []
+): Promise<OperationsPayload> {
+  const raw = await readFile(snapshotPath, "utf8");
+  const snapshot = JSON.parse(raw) as OperationsPayload;
+  const orders = Array.isArray(snapshot.orders) ? snapshot.orders : [];
+  const dataHealth = snapshot.dataHealth ?? {
+    droppedRows: 0,
+    isSample: false,
+    issues: [],
+    loadedOrderCount: orders.length,
+    missingColumns: [],
+    mode: "excel" as const,
+    refreshedAt: snapshot.refreshedAt,
+    rowCount: orders.length,
+    workbookPath: snapshotPath,
+  };
+
+  return {
+    ...snapshot,
+    orders,
+    rowCount: orders.length,
+    source: "excel",
+    sourceLabel: snapshot.sourceLabel || "Excel workbook snapshot",
+    dataHealth: {
+      ...dataHealth,
+      isSample: false,
+      issues: [...(dataHealth.issues ?? []), ...issues],
+      loadedOrderCount: orders.length,
+      mode: "excel",
+      rowCount: dataHealth.rowCount ?? orders.length,
+      workbookPath: dataHealth.workbookPath || snapshotPath,
     },
   };
 }
@@ -157,6 +195,18 @@ function asManualEta(value: CellValue) {
   return Number.isNaN(dateLike.getTime()) ? raw : null;
 }
 
+function hasCellValue(value: CellValue) {
+  if (value === null || value === undefined) {
+    return false;
+  }
+
+  if (value instanceof Date) {
+    return !Number.isNaN(value.getTime());
+  }
+
+  return String(value).trim() !== "";
+}
+
 function countUnusableDateCells(dataRows: CellValue[][], headers: string[]) {
   const dateIndexes = DATE_COLUMN_NAMES.map((name) => headers.indexOf(normalizeHeader(name)))
     .filter((index) => index >= 0);
@@ -164,7 +214,7 @@ function countUnusableDateCells(dataRows: CellValue[][], headers: string[]) {
   return dataRows.reduce((count, row) => {
     const unusableInRow = dateIndexes.filter((index) => {
       const value = row[index];
-      return value !== null && value !== undefined && asString(value) !== "" && !asIsoDate(value);
+      return hasCellValue(value) && !asIsoDate(value);
     }).length;
 
     return count + unusableInRow;
@@ -355,28 +405,30 @@ function buildOrder(
 
 export async function getOperationsData(): Promise<OperationsPayload> {
   const workbookPath = process.env.OPSFLOW_EXCEL_PATH ?? DEFAULT_EXCEL_PATH;
+  const snapshotPath = process.env.OPSFLOW_SNAPSHOT_PATH ?? DEFAULT_SNAPSHOT_PATH;
   const refreshedAt = new Date().toISOString();
-  const useSampleData =
+  const useSnapshotData =
     process.env.GITHUB_PAGES === "true" ||
-    process.env.OPSFLOW_USE_SAMPLE_DATA === "true";
+    process.env.OPSFLOW_USE_SNAPSHOT_DATA === "true";
 
-  if (useSampleData) {
-    return samplePayload(refreshedAt, workbookPath, [
-      {
-        severity: "info",
-        message:
-          process.env.GITHUB_PAGES === "true"
-            ? "Public GitHub Pages build uses sample portfolio data."
-            : "OPSFLOW_USE_SAMPLE_DATA is enabled.",
-      },
-    ]);
+  if (useSnapshotData) {
+    return loadSnapshotPayload(snapshotPath);
   }
 
   if (!existsSync(workbookPath)) {
-    return samplePayload(refreshedAt, workbookPath, [
+    if (existsSync(snapshotPath)) {
+      return loadSnapshotPayload(snapshotPath, [
+        {
+          severity: "warning",
+          message: `Workbook not found at ${workbookPath}; using the real workbook snapshot.`,
+        },
+      ]);
+    }
+
+    return unavailablePayload(refreshedAt, workbookPath, [
       {
-        severity: "warning",
-        message: `Workbook not found at ${workbookPath}; using sample data.`,
+        severity: "error",
+        message: `Workbook not found at ${workbookPath}; no real workbook snapshot is available.`,
       },
     ]);
   }
@@ -397,21 +449,25 @@ export async function getOperationsData(): Promise<OperationsPayload> {
     const unusableDateCells = countUnusableDateCells(dataRows, headers);
 
     if (orders.length === 0) {
-      return samplePayload(
-        refreshedAt,
-        workbookPath,
-        [
+      if (existsSync(snapshotPath)) {
+        return loadSnapshotPayload(snapshotPath, [
           {
             severity: "error",
-            message: "Workbook loaded, but no valid orders were parsed; using sample data.",
+            message: "Workbook loaded, but no valid orders were parsed; using the real workbook snapshot.",
           },
-        ],
+        ]);
+      }
+
+      return unavailablePayload(refreshedAt, workbookPath, [
         {
-          droppedRows,
-          missingColumns,
-          rowCount: dataRows.length,
-        }
-      );
+          severity: "error",
+          message: "Workbook loaded, but no valid orders were parsed.",
+        },
+      ], {
+        droppedRows,
+        missingColumns,
+        rowCount: dataRows.length,
+      });
     }
 
     const issues: DataHealthIssue[] = [];
@@ -462,7 +518,16 @@ export async function getOperationsData(): Promise<OperationsPayload> {
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown workbook parse error";
-    return samplePayload(refreshedAt, workbookPath, [
+    if (existsSync(snapshotPath)) {
+      return loadSnapshotPayload(snapshotPath, [
+        {
+          severity: "error",
+          message: `Workbook parse failed: ${message}; using the real workbook snapshot.`,
+        },
+      ]);
+    }
+
+    return unavailablePayload(refreshedAt, workbookPath, [
       { severity: "error", message: `Workbook parse failed: ${message}` },
     ]);
   }
